@@ -51,3 +51,5 @@ metals.sbt
 
 # BSP specific
 .bsp/
+# Application data (base SQLite des modèles)
+/models/

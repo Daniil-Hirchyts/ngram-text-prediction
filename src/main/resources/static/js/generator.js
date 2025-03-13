@@ -1,54 +1,38 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Éléments DOM pour la génération
     const prefixeInput = document.getElementById('prefixe-input');
-    const tailleNGramGen = document.getElementById('taille-ngram-gen');
+    const tailleNGram = document.getElementById('taille-ngram-gen');
     const nombreMots = document.getElementById('nombre-mots');
-    const generateBtn = document.getElementById('generate-btn');
-    const generatedTextContainer = document.querySelector('.generated-text');
+    const bouton = document.getElementById('generate-btn');
+    const conteneur = document.querySelector('.generated-text');
+    if (!prefixeInput || !tailleNGram || !nombreMots || !bouton || !conteneur) return;
 
-    // Si ces éléments n'existent pas sur cette page, sortir
-    if (!prefixeInput || !tailleNGramGen || !nombreMots || !generateBtn || !generatedTextContainer) return;
+    function afficher(message) {
+        const p = document.createElement('p');
+        p.textContent = message;
+        conteneur.replaceChildren(p);
+    }
 
-    // Gestionnaire d'événements pour le bouton de génération
-    generateBtn.addEventListener('click', () => {
+    bouton.addEventListener('click', async () => {
         const prefixe = prefixeInput.value.trim();
-        const taille = tailleNGramGen.value;
-        const nombre = nombreMots.value;
-        console.log("Génération de texte: prefixe =", prefixe, "taille =", taille, "nombre =", nombre);
-
-        if (prefixe) {
-            genererTexte(prefixe, taille, nombre);
-        } else {
-            generatedTextContainer.innerHTML = '<p>Veuillez entrer un préfixe</p>';
+        if (!prefixe) {
+            afficher('Veuillez entrer un préfixe');
+            return;
         }
-    });
 
-    // Fonction pour générer du texte à partir du serveur
-    async function genererTexte(prefixe, taille, nombre) {
+        afficher('Génération en cours...');
+        const params = new URLSearchParams({
+            prefixe: finDuTexte(prefixe),
+            tailleNGramme: tailleNGram.value,
+            nombreMots: nombreMots.value,
+            modelId: currentModelId
+        });
+
         try {
-            // Afficher un indicateur de chargement
-            generatedTextContainer.innerHTML = '<p>Génération en cours...</p>';
-
-            const url = `/api/generer?prefixe=${encodeURIComponent(prefixe)}&tailleNGramme=${taille}&nombreMots=${nombre}&modelId=${encodeURIComponent(currentModelId)}`;
-            console.log("genererTexte: appel API avec", url);
-            const response = await fetch(url);
-            const data = await response.json();
-            console.log("genererTexte: réponse API", data);
-
-            if (data.texte) {
-                // Formater le texte généré pour une meilleure lisibilité
-                const formattedText = data.texte
-                    .replace(/\./g, '.<br>')
-                    .replace(/\?/g, '?<br>')
-                    .replace(/!/g, '!<br>');
-
-                generatedTextContainer.innerHTML = `<p>${formattedText}</p>`;
-            } else {
-                generatedTextContainer.innerHTML = '<p>Impossible de générer du texte</p>';
-            }
+            const data = await appelerApi(`/api/generer?${params}`);
+            afficher(data.texte);
         } catch (error) {
             console.error('Erreur lors de la génération du texte:', error);
-            generatedTextContainer.innerHTML = '<p>Erreur lors de la génération du texte</p>';
+            afficher(`Erreur : ${error.message}`);
         }
-    }
+    });
 });

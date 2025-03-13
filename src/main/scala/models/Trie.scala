@@ -1,5 +1,7 @@
 package models
 
+import java.util.Locale
+
 case class Trie[T](
     enfants: Map[Char, Trie[T]] = Map.empty[Char, Trie[T]],
     valeur: Option[Probabilites[T]] = None
@@ -12,41 +14,48 @@ case class Trie[T](
         "Les probabilités ne peuvent pas être null"
       )
 
-    insererAide(mot.toLowerCase.trim, 0, probs)
+    insererAide(Trie.normaliserCle(mot), 0, probs)
 
   private def insererAide(
       mot: String,
       index: Int,
       probs: Probabilites[T]
   ): Trie[T] =
-    if index == mot.length then
-      // Fin du mot atteinte, on enregistre les probabilités
-      Trie(enfants, Some(probs))
+    if index == mot.length then Trie(enfants, Some(probs))
     else
-      // Traitement caractère par caractère
       val caractere = mot(index)
-      // Utilisation du constructeur avec type explicite
-      val enfantActuel =
-        enfants.getOrElse(caractere, Trie[T](Map.empty[Char, Trie[T]], None))
+      val enfantActuel = enfants.getOrElse(caractere, Trie[T]())
       val enfantMisAJour = enfantActuel.insererAide(mot, index + 1, probs)
-      val enfantsMisAJour = enfants + (caractere -> enfantMisAJour)
-      Trie(enfantsMisAJour, valeur)
+      Trie(enfants + (caractere -> enfantMisAJour), valeur)
 
   def trouver(prefixe: String): Option[Probabilites[T]] =
     if prefixe == null then None
-    else trouverAide(prefixe.toLowerCase.trim, 0)
+    else noeud(Trie.normaliserCle(prefixe)).flatMap(_.valeur)
 
-  private def trouverAide(
-      prefixe: String,
-      index: Int
-  ): Option[Probabilites[T]] =
-    if index == prefixe.length then valeur
+  private def noeud(chemin: String): Option[Trie[T]] =
+    chemin.foldLeft(Option(this)) { (courant, caractere) =>
+      courant.flatMap(_.enfants.get(caractere))
+    }
+
+  /** Toutes les clés commençant par le préfixe, avec leur valeur. C'est la
+    * recherche qui justifie un arbre plutôt qu'une table de hachage.
+    */
+  def clesAvecPrefixe(prefixe: String): List[(String, Probabilites[T])] =
+    if prefixe == null then Nil
     else
-      enfants.get(prefixe(index)) match
-        case Some(enfant) => enfant.trouverAide(prefixe, index + 1)
-        case None         => None
+      val depart = Trie.normaliserCle(prefixe)
+      noeud(depart).map(_.parcourir(depart)).getOrElse(Nil)
+
+  private def parcourir(cle: String): List[(String, Probabilites[T])] =
+    valeur.map(v => (cle, v)).toList ++ enfants.toList.flatMap {
+      (caractere, enfant) => enfant.parcourir(cle + caractere)
+    }
 
   def obtenirPlusProbables(prefixe: String, n: Int = 3): List[(T, Double)] =
     trouver(prefixe) match
       case Some(probs) => probs.plusProbables(n)
       case None        => List.empty
+
+object Trie:
+  private def normaliserCle(cle: String): String =
+    cle.toLowerCase(Locale.ROOT).trim

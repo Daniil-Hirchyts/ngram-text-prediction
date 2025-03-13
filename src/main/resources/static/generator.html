@@ -45,11 +45,11 @@
                 </div>
 
                 <div class="input-group">
-                    <label for="taille-ngram-gen">Taille du n-gramme:</label>
+                    <label for="taille-ngram-gen">Contexte maximal :</label>
                     <select id="taille-ngram-gen">
-                        <option value="1">Unigramme</option>
-                        <option value="2">Bigramme</option>
-                        <option value="3" selected>Trigramme</option>
+                        <option value="1">1 mot de contexte</option>
+                        <option value="2">2 mots de contexte</option>
+                        <option value="3" selected>3 mots de contexte</option>
                     </select>
                 </div>
 
@@ -78,7 +78,8 @@
                         <li>L'application analyse ce préfixe selon la taille de n-gramme choisie</li>
                         <li>Pour chaque mot à générer, l'application :</li>
                         <ul>
-                            <li>Recherche les mots qui pourraient suivre la séquence actuelle</li>
+                            <li>Recherche les mots qui suivent la séquence actuelle, ou un contexte plus court si elle est
+                                inconnue</li>
                             <li>Sélectionne un mot aléatoirement en fonction des probabilités</li>
                             <li>Ajoute ce mot au texte généré</li>
                             <li>Utilise la nouvelle séquence pour le mot suivant</li>

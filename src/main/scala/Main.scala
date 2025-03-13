@@ -1,48 +1,42 @@
-@main def main(): Unit = {
-  import akka.actor.typed.ActorSystem
-  import akka.actor.typed.scaladsl.Behaviors
-  import akka.http.scaladsl.Http
-  import scala.concurrent.ExecutionContextExecutor
-  import scala.io.StdIn
-  import akka.stream.Materializer
+import api.Routes
+import java.nio.file.Paths
+import models.{DepotModeles, ModelManager}
+import org.apache.pekko.actor.typed.{ActorSystem, DispatcherSelector}
+import org.apache.pekko.actor.typed.scaladsl.Behaviors
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.stream.Materializer
+import org.slf4j.LoggerFactory
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.*
+import scala.util.{Failure, Success}
 
-  import api.Routes
-  import models.ModelManager
+/** Lance le serveur. Il s'arrête proprement à la réception de SIGTERM ou
+  * Ctrl-C, et fonctionne donc aussi sans terminal (Docker, service, nohup).
+  */
+@main def main(): Unit =
+  val log = LoggerFactory.getLogger("main")
+  def variable(nom: String, defaut: String) = sys.env.getOrElse(nom, defaut)
 
-  // Appel de la méthode serverMain originale
-  println("Démarrage de l'application via Main.scala")
+  val hote = variable("HOST", "localhost")
+  val port = variable("PORT", "8080").toInt
+  val base = Paths.get(variable("MODELS_DIR", "models")).resolve("modeles.db")
+  val corpus = Paths.get(variable("TRAINING_TEXTS_DIR", "training-texts"))
 
-  // Initialisation des modèles
-  ModelManager.loadAllModels()
+  val manager = ModelManager(DepotModeles(base), Some(corpus))
+  manager.initialiser()
 
-  // Création du système d'acteurs
-  implicit val system: ActorSystem[Nothing] =
+  given system: ActorSystem[Nothing] =
     ActorSystem(Behaviors.empty, "predictionTexteSysteme")
+  given ec: ExecutionContext = system.executionContext
+  given Materializer = Materializer(system)
+  val blocage = system.dispatchers.lookup(DispatcherSelector.blocking())
 
-  // Contexte d'exécution implicite requis pour futures
-  implicit val executionContext: ExecutionContextExecutor =
-    system.executionContext
-
-  // Materializer requis pour les streams Akka
-  implicit val materializer: Materializer = Materializer(system)
-
-  // Création des routes
-  val routes = Routes()
-
-  // Démarrage du serveur HTTP
-  val bindingFuture = Http().newServerAt("localhost", 8080).bind(routes)
-
-  println(s"Serveur démarré à http://localhost:8080/")
-  println(s"Appuyez sur RETURN pour arrêter...")
-
-  // Attente de la commande d'arrêt
-  StdIn.readLine()
-
-  // Arrêt propre du serveur
-  bindingFuture
-    .flatMap(_.unbind())
-    .onComplete(_ => {
-      println("Serveur arrêté")
+  Http().newServerAt(hote, port).bind(Routes(manager, blocage)).onComplete {
+    case Success(liaison) =>
+      liaison.addToCoordinatedShutdown(10.seconds)
+      log.info("Serveur démarré sur http://{}:{}/", hote, port)
+    case Failure(e) =>
+      log.error(s"Impossible d'écouter sur $hote:$port", e)
       system.terminate()
-    })
-}
+      sys.exit(1)
+  }

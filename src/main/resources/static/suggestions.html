@@ -45,11 +45,11 @@
                 </div>
 
                 <div class="input-group">
-                    <label for="taille-ngram">Taille du n-gramme:</label>
+                    <label for="taille-ngram">Contexte maximal :</label>
                     <select id="taille-ngram">
-                        <option value="1">Unigramme</option>
-                        <option value="2" selected>Bigramme</option>
-                        <option value="3">Trigramme</option>
+                        <option value="1">1 mot de contexte</option>
+                        <option value="2">2 mots de contexte</option>
+                        <option value="3" selected>3 mots de contexte</option>
                     </select>
                 </div>
 
@@ -69,8 +69,8 @@
                     <ol>
                         <li>Le texte que vous entrez est analysé pour identifier les derniers mots (selon la taille du
                             n-gramme choisie)</li>
-                        <li>L'application recherche dans le modèle quels mots suivent le plus souvent cette séquence
-                        </li>
+                        <li>L'application recherche dans le modèle quels mots suivent le plus souvent cette séquence ; si
+                            elle ne l'a jamais vue, elle se replie sur un contexte plus court</li>
                         <li>Les mots les plus probables sont présentés comme suggestions, avec leur pourcentage de
                             probabilité</li>
                     </ol>

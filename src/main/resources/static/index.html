@@ -46,25 +46,23 @@
                 <div class="input-group">
                     <label for="autocomplete-input">Écrivez votre texte:</label>
                     <div class="autocomplete-container">
-                        <div class="autocomplete-wrapper">
-                            <span id="autocomplete-text"></span>
-                            <span id="autocomplete-suggestion"></span>
-                        </div>
+                        <!-- Aucun espace entre ces balises : le conteneur conserve les blancs (pre-wrap). -->
+                        <div class="autocomplete-wrapper"><span id="autocomplete-text"></span><span id="autocomplete-suggestion"></span></div>
                         <textarea id="autocomplete-input" placeholder="Commencez à écrire..."></textarea>
                     </div>
                 </div>
 
                 <div class="input-group">
-                    <label for="autocomplete-taille-ngram">Taille du n-gramme:</label>
+                    <label for="autocomplete-taille-ngram">Contexte maximal :</label>
                     <select id="autocomplete-taille-ngram">
-                        <option value="1">Unigramme</option>
-                        <option value="2" selected>Bigramme</option>
-                        <option value="3">Trigramme</option>
+                        <option value="1">1 mot de contexte</option>
+                        <option value="2">2 mots de contexte</option>
+                        <option value="3" selected>3 mots de contexte</option>
                     </select>
                 </div>
 
                 <div class="input-hint">
-                    <p><strong>Astuce:</strong> Appuyez sur <kbd>Tab</kbd> pour accepter une suggestion.</p>
+                    <p><strong>Astuce:</strong> Appuyez sur <kbd>Tab</kbd> pour accepter la suggestion, y compris au milieu d'un mot.</p>
                 </div>
             </section>
 

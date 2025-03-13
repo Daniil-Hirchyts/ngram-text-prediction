@@ -1,92 +1,72 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Éléments DOM pour les suggestions
     const texteInput = document.getElementById('texte-input');
     const tailleNGram = document.getElementById('taille-ngram');
-    const suggestionsContainer = document.querySelector('.suggestions');
+    const conteneur = document.querySelector('.suggestions');
+    if (!texteInput || !tailleNGram || !conteneur) return;
 
-    // Si ces éléments n'existent pas sur cette page, sortir
-    if (!texteInput || !tailleNGram || !suggestionsContainer) return;
+    let requeteEnCours = null;
 
-    // Gestionnaire d'événements pour l'input de texte (suggestions)
-    texteInput.addEventListener('input', debounce(() => {
+    function afficherMessage(message) {
+        const p = document.createElement('p');
+        p.textContent = message;
+        conteneur.replaceChildren(p);
+    }
+
+    function afficherSuggestions(suggestions) {
+        conteneur.replaceChildren(...suggestions.map(suggestion => {
+            const element = document.createElement('div');
+            element.classList.add('suggestion-item');
+            element.dataset.mot = suggestion.mot;
+            element.textContent = `${suggestion.mot} `;
+
+            const pourcentage = document.createElement('span');
+            pourcentage.classList.add('probability');
+            pourcentage.textContent = `${(suggestion.probabilite * 100).toFixed(1)}%`;
+            element.appendChild(pourcentage);
+            return element;
+        }));
+    }
+
+    async function actualiser() {
+        if (requeteEnCours) requeteEnCours.abort();
+
         const texte = texteInput.value.trim();
-        const taille = tailleNGram.value;
-        console.log("Input suggestions:", texte, "taille =", taille);
-
-        if (texte) {
-            obtenirSuggestions(texte, taille);
-        } else {
-            suggestionsContainer.innerHTML = '<p>Les suggestions apparaîtront ici</p>';
+        if (!texte) {
+            afficherMessage('Les suggestions apparaîtront ici');
+            return;
         }
-    }, 300));
 
-    // Gestionnaire d'événements pour le changement de taille de n-gramme
-    tailleNGram.addEventListener('change', () => {
-        const texte = texteInput.value.trim();
-        const taille = tailleNGram.value;
-        console.log("Changement de taille n-gram:", taille);
+        const requete = new AbortController();
+        requeteEnCours = requete;
+        const params = new URLSearchParams({
+            texte: finDuTexte(texte),
+            taille: tailleNGram.value,
+            modelId: currentModelId
+        });
 
-        if (texte) {
-            obtenirSuggestions(texte, taille);
-        }
-    });
-
-    // Gestionnaire d'événements pour cliquer sur une suggestion
-    suggestionsContainer.addEventListener('click', (e) => {
-        if (e.target.classList.contains('suggestion-item')) {
-            const mot = e.target.dataset.mot;
-            if (mot) {
-                texteInput.value += ` ${mot}`;
-                texteInput.focus();
-                console.log("Suggestion cliquée:", mot);
-                // Déclencher l'événement input pour mettre à jour les suggestions
-                const inputEvent = new Event('input', { bubbles: true });
-                texteInput.dispatchEvent(inputEvent);
-            }
-        }
-    });
-
-    // Réagir au changement de modèle
-    document.addEventListener('modelChanged', () => {
-        if (texteInput.value.trim()) {
-            obtenirSuggestions(texteInput.value.trim(), tailleNGram.value);
-        }
-    });
-
-    // Fonction pour obtenir des suggestions du serveur
-    async function obtenirSuggestions(texte, taille) {
         try {
-            const url = `/api/suggestions?texte=${encodeURIComponent(texte)}&taille=${taille}&modelId=${encodeURIComponent(currentModelId)}`;
-            console.log("obtenirSuggestions: appel API avec", url);
-            const response = await fetch(url);
-            const data = await response.json();
-            console.log("obtenirSuggestions: réponse API", data);
-
-            if (data.suggestions && data.suggestions.length > 0) {
+            const data = await appelerApi(`/api/suggestions?${params}`, { signal: requete.signal });
+            if (data.suggestions.length > 0) {
                 afficherSuggestions(data.suggestions);
             } else {
-                suggestionsContainer.innerHTML = '<p>Aucune suggestion trouvée</p>';
+                afficherMessage('Aucune suggestion trouvée');
             }
         } catch (error) {
+            if (error.name === 'AbortError') return;
             console.error('Erreur lors de la récupération des suggestions:', error);
-            suggestionsContainer.innerHTML = '<p>Erreur lors de la récupération des suggestions</p>';
+            afficherMessage(`Erreur : ${error.message}`);
         }
     }
 
-    // Fonction pour afficher les suggestions
-    function afficherSuggestions(suggestions) {
-        suggestionsContainer.innerHTML = '';
+    texteInput.addEventListener('input', debounce(actualiser, 300));
+    tailleNGram.addEventListener('change', actualiser);
+    document.addEventListener('modelChanged', actualiser);
 
-        suggestions.forEach(suggestion => {
-            const suggestionElement = document.createElement('div');
-            suggestionElement.classList.add('suggestion-item');
-            suggestionElement.dataset.mot = suggestion.mot;
-
-            const pourcentage = (suggestion.probabilite * 100).toFixed(1);
-            suggestionElement.innerHTML = `${suggestion.mot} <span class="probability">${pourcentage}%</span>`;
-
-            suggestionsContainer.appendChild(suggestionElement);
-        });
-        console.log("afficherSuggestions: suggestions affichées", suggestions);
-    }
+    conteneur.addEventListener('click', (e) => {
+        const element = e.target.closest('.suggestion-item');
+        if (!element) return;
+        texteInput.value = `${texteInput.value.trimEnd()} ${element.dataset.mot}`;
+        texteInput.focus();
+        actualiser();
+    });
 });
